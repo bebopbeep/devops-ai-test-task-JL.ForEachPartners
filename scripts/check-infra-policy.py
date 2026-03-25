@@ -64,7 +64,8 @@ else:
         add_violation(f"{RENDERED_PATH} could not be decoded as UTF-8 or UTF-16 text.")
 
 if rendered_text is not None:
-    docs = [doc for doc in re.split(r"\n---\s*\n", rendered_text) if doc.strip()]
+    normalized_rendered_text = rendered_text.replace("\r\n", "\n").replace("\r", "\n")
+    docs = [doc for doc in re.split(r"\n---\s*\n", normalized_rendered_text) if doc.strip()]
 
     def find_deployment(component: str) -> str | None:
         component_pattern = re.compile(rf"app\.kubernetes\.io/component:\s*{re.escape(component)}")
