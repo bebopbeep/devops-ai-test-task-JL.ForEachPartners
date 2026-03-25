@@ -85,7 +85,15 @@ jobs:
         run: python -m pip install --upgrade pip yamllint==1.35.1
 
       - name: Lint YAML files
-        run: yamllint -d relaxed .
+        run: |
+          yamllint -d relaxed \
+            requirements.yaml \
+            ansible \
+            .github/workflows \
+            charts/sdd-navigator/Chart.yaml \
+            charts/sdd-navigator/values.yaml \
+            charts/sdd-navigator/charts/*/Chart.yaml \
+            charts/sdd-navigator/charts/*/values.yaml
 
   # @req SCI-TRACE-001
   traceability:

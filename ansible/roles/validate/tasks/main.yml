@@ -5,7 +5,11 @@
     - name: Start API port-forward
       ansible.builtin.shell: |
         set -o errexit
-        kubectl port-forward --namespace {{ namespace }} svc/{{ api_service_name }} {{ api_local_port }}:{{ api_service_port }} > {{ playbook_dir }}/.generated/api-port-forward.log 2>&1 &
+        kubectl port-forward \
+          --namespace {{ k8s_namespace }} \
+          svc/{{ api_service_name }} \
+          {{ api_local_port }}:{{ api_service_port }} \
+          > {{ playbook_dir }}/.generated/api-port-forward.log 2>&1 &
         echo $!
       args:
         executable: /bin/bash
@@ -39,7 +43,9 @@
     - name: Find non-running pods
       ansible.builtin.shell: |
         set -o errexit
-        kubectl get pods --namespace {{ namespace }} --no-headers | awk '$3 != "Running" { print $0 }'
+        set -o pipefail
+        kubectl get pods --namespace {{ k8s_namespace }} --no-headers | \
+          awk '$3 != "Running" { print $0 }'
       args:
         executable: /bin/bash
       register: non_running_pods
@@ -53,7 +59,7 @@
           - get
           - pods
           - --namespace
-          - "{{ namespace }}"
+          - "{{ k8s_namespace }}"
           - -l
           - "app.kubernetes.io/component=postgresql,app.kubernetes.io/instance={{ release_name }}"
           - -o
@@ -68,7 +74,7 @@
           - kubectl
           - exec
           - --namespace
-          - "{{ namespace }}"
+          - "{{ k8s_namespace }}"
           - "{{ postgres_pod.stdout }}"
           - --
           - /bin/sh
@@ -81,12 +87,21 @@
 
     - name: Evaluate healthcheck result
       ansible.builtin.set_fact:
-        healthcheck_ok: "{{ healthcheck_response.status | default(0) == 200 and healthcheck_response.json is defined and healthcheck_response.json.status == 'healthy' }}"
+        healthcheck_ok: >-
+          {{
+            healthcheck_response.status | default(0) == 200
+            and healthcheck_response.json is defined
+            and healthcheck_response.json.status == 'healthy'
+          }}
       changed_when: false
 
     - name: Evaluate stats result
       ansible.builtin.set_fact:
-        stats_ok: "{{ stats_response.status | default(0) == 200 and stats_response.json is defined }}"
+        stats_ok: >-
+          {{
+            stats_response.status | default(0) == 200
+            and stats_response.json is defined
+          }}
       changed_when: false
 
     - name: Evaluate pod status result

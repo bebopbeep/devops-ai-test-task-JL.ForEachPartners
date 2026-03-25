@@ -7,7 +7,7 @@
 # @req SCI-HELM-004
 # @req SCI-HELM-005
 # @req SCI-HELM-006
-namespace: sdd-navigator
+k8s_namespace: sdd-navigator
 release_name: sdd-navigator
 chart_path: "{{ playbook_dir }}/../charts/sdd-navigator"
 chart_values_path: "{{ playbook_dir }}/.generated/values.override.yaml"
