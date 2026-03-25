@@ -1,7 +1,7 @@
 # @req SCI-HELM-002
 # @req SCI-HELM-006
 # @req SCI-SEC-001
-{{- $secretName := .Values.auth.existingSecret -}}
+{{ $secretName := .Values.auth.existingSecret }}
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:

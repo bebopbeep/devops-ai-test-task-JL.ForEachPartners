@@ -21,7 +21,7 @@ jobs:
           version: v3.16.3
 
       - name: Lint umbrella chart
-        run: helm lint charts/sdd-navigator --with-subcharts --strict
+        run: helm lint charts/sdd-navigator --strict
 
   # @req SCI-CI-001
   # @req SCI-CI-002

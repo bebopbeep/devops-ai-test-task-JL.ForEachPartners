@@ -28,7 +28,7 @@ helm template sdd-navigator charts/sdd-navigator --namespace sdd-navigator
 Lint the chart:
 
 ```bash
-helm lint charts/sdd-navigator --with-subcharts --strict
+helm lint charts/sdd-navigator --strict
 ```
 
 Render with the Ansible-generated override file after a deployment run:

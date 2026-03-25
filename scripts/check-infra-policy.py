@@ -52,7 +52,18 @@ for file_path in values_files:
 if not RENDERED_PATH.exists():
     add_violation(f"{RENDERED_PATH} does not exist. Render the chart before running this policy check.")
 else:
-    rendered_text = RENDERED_PATH.read_text(encoding="utf-8")
+    rendered_text = None
+    for encoding in ("utf-8", "utf-8-sig", "utf-16", "utf-16-le", "utf-16-be"):
+        try:
+            rendered_text = RENDERED_PATH.read_text(encoding=encoding)
+            break
+        except UnicodeDecodeError:
+            continue
+
+    if rendered_text is None:
+        add_violation(f"{RENDERED_PATH} could not be decoded as UTF-8 or UTF-16 text.")
+
+if rendered_text is not None:
     docs = [doc for doc in re.split(r"\n---\s*\n", rendered_text) if doc.strip()]
 
     def find_deployment(component: str) -> str | None:
