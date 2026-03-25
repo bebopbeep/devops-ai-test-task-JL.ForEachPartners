@@ -3,3 +3,4 @@ scripts/__pycache__/
 *.pyc
 *.html
 sdd-coverage-api.yaml
+rendered-manifests.yaml

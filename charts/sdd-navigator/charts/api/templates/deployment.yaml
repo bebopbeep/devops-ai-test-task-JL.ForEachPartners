@@ -2,8 +2,8 @@
 # @req SCI-HELM-005
 # @req SCI-HELM-006
 # @req SCI-SEC-001
-{{- $dbHost := default (include "sdd-navigator.componentFullname" (dict "root" . "component" "postgresql")) .Values.config.databaseHost -}}
-{{- $dbSecret := default (printf "%s-db" .Release.Name) .Values.database.existingSecret -}}
+{{ $dbHost := default (include "sdd-navigator.componentFullname" (dict "root" . "component" "postgresql")) .Values.config.databaseHost }}
+{{ $dbSecret := default (printf "%s-db" .Release.Name) .Values.database.existingSecret }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
