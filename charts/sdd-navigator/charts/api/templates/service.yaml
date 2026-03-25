@@ -1,0 +1,17 @@
+# @req SCI-HELM-001
+# @req SCI-HELM-006
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "sdd-navigator.componentFullname" (dict "root" . "component" "api") }}
+  namespace: {{ include "sdd-navigator.namespace" . }}
+  labels:
+    {{- include "sdd-navigator.labels" (dict "root" . "component" "api") | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    {{- include "sdd-navigator.selectorLabels" (dict "root" . "component" "api") | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ .Values.service.port }}
+      targetPort: http

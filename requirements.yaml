@@ -1,0 +1,143 @@
+requirements:
+  - id: SCI-HELM-001
+    type: FR
+    title: Helm chart for API service
+    description: >-
+      Chart MUST define a Deployment for the sdd-coverage Rust API
+      container with configurable image, replicas, resource limits,
+      liveness probe on /healthcheck (initialDelaySeconds: 10,
+      periodSeconds: 15), and readiness probe on /healthcheck
+      (initialDelaySeconds: 5, periodSeconds: 5).
+    createdAt: "2026-03-01T00:00:00Z"
+    updatedAt: "2026-03-01T00:00:00Z"
+
+  - id: SCI-HELM-002
+    type: FR
+    title: PostgreSQL deployment
+    description: >-
+      Chart MUST deploy PostgreSQL via Bitnami subchart or custom
+      StatefulSet with PVC for data persistence. Database name, user,
+      and password MUST be configurable via values.yaml. Credentials
+      MUST be stored in a Kubernetes Secret, not in plaintext defaults.
+    createdAt: "2026-03-01T00:00:00Z"
+    updatedAt: "2026-03-01T00:00:00Z"
+
+  - id: SCI-HELM-003
+    type: FR
+    title: Frontend deployment
+    description: >-
+      Chart MUST deploy an nginx container serving the pre-built
+      Next.js static export. Image, replicas, and resource limits
+      MUST be configurable via values.yaml.
+    createdAt: "2026-03-01T00:00:00Z"
+    updatedAt: "2026-03-01T00:00:00Z"
+
+  - id: SCI-HELM-004
+    type: FR
+    title: Ingress routing
+    description: >-
+      Chart MUST define an Ingress resource routing /api/* to the
+      API service and / to the frontend. TLS MUST be configurable
+      (enabled/disabled with secretName). Host MUST be configurable
+      via values.yaml.
+    createdAt: "2026-03-01T00:00:00Z"
+    updatedAt: "2026-03-01T00:00:00Z"
+
+  - id: SCI-HELM-005
+    type: FR
+    title: Secrets and ConfigMaps
+    description: >-
+      Chart MUST use a Secret for database credentials and a ConfigMap
+      for application configuration (API port, database host, log level).
+      No credentials in values.yaml defaults — defaults MUST use
+      placeholder values that fail visibly if not overridden.
+    createdAt: "2026-03-01T00:00:00Z"
+    updatedAt: "2026-03-01T00:00:00Z"
+
+  - id: SCI-HELM-006
+    type: FR
+    title: DRY configuration
+    description: >-
+      Every configurable value (image tags, ports, resource limits,
+      replica counts, hostnames) MUST be defined in values.yaml and
+      referenced via templates. No hardcoded values in template files.
+      Shared labels MUST use a _helpers.tpl partial.
+    createdAt: "2026-03-01T00:00:00Z"
+    updatedAt: "2026-03-01T00:00:00Z"
+
+  - id: SCI-ANS-001
+    type: FR
+    title: Ansible orchestration
+    description: >-
+      Playbook MUST deploy the Helm chart to a Kubernetes cluster
+      in correct order: namespace creation, secrets, database, API
+      service, frontend, ingress. Playbook MUST wait for each
+      component to reach ready state before proceeding to the next.
+    createdAt: "2026-03-01T00:00:00Z"
+    updatedAt: "2026-03-01T00:00:00Z"
+
+  - id: SCI-ANS-002
+    type: FR
+    title: Post-deploy validation
+    description: >-
+      Ansible MUST include a validation role that runs after
+      deployment and verifies: /healthcheck returns HTTP 200 with
+      status "healthy", /stats returns HTTP 200, all pods are
+      Running, PostgreSQL accepts connections via pg_isready.
+      Results MUST be reported as Ansible debug output with
+      pass/fail per check.
+    createdAt: "2026-03-01T00:00:00Z"
+    updatedAt: "2026-03-01T00:00:00Z"
+
+  - id: SCI-ANS-003
+    type: FR
+    title: Idempotency
+    description: >-
+      Running the playbook twice MUST produce zero changes on
+      the second run. All Ansible tasks MUST report ok (not changed)
+      when the desired state already exists.
+    createdAt: "2026-03-01T00:00:00Z"
+    updatedAt: "2026-03-01T00:00:00Z"
+
+  - id: SCI-CI-001
+    type: FR
+    title: CI pipeline
+    description: >-
+      GitHub Actions workflow MUST run helm lint, helm template
+      (render and validate), ansible-lint, and yamllint on every
+      push. Jobs MUST run in parallel where possible.
+    createdAt: "2026-03-01T00:00:00Z"
+    updatedAt: "2026-03-01T00:00:00Z"
+
+  - id: SCI-CI-002
+    type: FR
+    title: Manifest validation
+    description: >-
+      CI MUST render Helm templates and validate the output against
+      Kubernetes schemas using kubeconform or kubeval. Validation
+      MUST fail on unknown fields and missing required fields.
+    createdAt: "2026-03-01T00:00:00Z"
+    updatedAt: "2026-03-01T00:00:00Z"
+
+  - id: SCI-TRACE-001
+    type: FR
+    title: Traceability annotations
+    description: >-
+      Every Helm template file, every Ansible task file, and every
+      CI job MUST contain a @req annotation comment referencing the
+      requirement it implements. A traceability check script MUST
+      scan all .yaml, .yml, and .tpl files and report any file
+      missing @req annotations.
+    createdAt: "2026-03-01T00:00:00Z"
+    updatedAt: "2026-03-01T00:00:00Z"
+
+  - id: SCI-SEC-001
+    type: AR
+    title: Security baseline
+    description: >-
+      API and frontend containers MUST run as non-root user.
+      PostgreSQL data volume MUST have restrictive permissions.
+      No container SHOULD use the latest tag — all images MUST
+      specify explicit version tags.
+    createdAt: "2026-03-01T00:00:00Z"
+    updatedAt: "2026-03-01T00:00:00Z"

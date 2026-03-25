@@ -1,0 +1,9 @@
+# @req SCI-HELM-001
+# @req SCI-HELM-005
+# @req SCI-HELM-006
+apiVersion: v2
+name: api
+description: SDD Navigator Rust API service chart.
+type: application
+version: 0.1.0
+appVersion: "3.0.0"

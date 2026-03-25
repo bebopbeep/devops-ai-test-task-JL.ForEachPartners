@@ -1,0 +1,19 @@
+# @req SCI-HELM-002
+# @req SCI-HELM-004
+# @req SCI-HELM-006
+apiVersion: v2
+name: sdd-navigator
+description: Umbrella chart for the SDD Navigator platform.
+type: application
+version: 0.1.0
+appVersion: "3.0.0"
+dependencies:
+  - name: api
+    version: 0.1.0
+    repository: "file://charts/api"
+  - name: frontend
+    version: 0.1.0
+    repository: "file://charts/frontend"
+  - name: postgresql
+    version: 0.1.0
+    repository: "file://charts/postgresql"

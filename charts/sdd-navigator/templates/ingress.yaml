@@ -1,0 +1,44 @@
+# @req SCI-HELM-004
+# @req SCI-HELM-006
+{{- if .Values.ingress.enabled }}
+{{- $host := default .Values.global.domain .Values.ingress.host }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "sdd-navigator.fullname" . }}
+  namespace: {{ include "sdd-navigator.namespace" . }}
+  labels:
+    {{- include "sdd-navigator.labels" (dict "root" . "component" "ingress") | nindent 4 }}
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- with .Values.ingress.className }}
+  ingressClassName: {{ . | quote }}
+  {{- end }}
+  rules:
+    - host: {{ $host | quote }}
+      http:
+        paths:
+          - path: {{ .Values.ingress.apiPath | quote }}
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "sdd-navigator.componentFullname" (dict "root" . "component" "api") }}
+                port:
+                  number: {{ .Values.api.service.port }}
+          - path: {{ .Values.ingress.frontendPath | quote }}
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "sdd-navigator.componentFullname" (dict "root" . "component" "frontend") }}
+                port:
+                  number: {{ .Values.frontend.service.port }}
+  {{- if .Values.global.tls.enabled }}
+  tls:
+    - hosts:
+        - {{ $host | quote }}
+      secretName: {{ .Values.global.tls.secretName | quote }}
+  {{- end }}
+{{- end }}

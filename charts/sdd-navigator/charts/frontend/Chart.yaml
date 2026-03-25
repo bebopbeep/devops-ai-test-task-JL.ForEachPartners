@@ -1,0 +1,9 @@
+# @req SCI-HELM-003
+# @req SCI-HELM-006
+# @req SCI-SEC-001
+apiVersion: v2
+name: frontend
+description: SDD Navigator frontend chart.
+type: application
+version: 0.1.0
+appVersion: "3.0.0"

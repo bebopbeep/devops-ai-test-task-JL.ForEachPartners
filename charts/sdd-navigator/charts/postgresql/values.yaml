@@ -1,0 +1,38 @@
+# @req SCI-HELM-002
+# @req SCI-HELM-006
+# @req SCI-SEC-001
+image:
+  repository: bitnami/postgresql
+  tag: "16.4.0-debian-12-r12"
+  pullPolicy: IfNotPresent
+
+service:
+  port: 5432
+
+auth:
+  database: sdd_navigator
+  username: "__REPLACE_DB_USER__"
+  existingSecret: sdd-navigator-db
+  usernameKey: username
+  passwordKey: password
+
+primary:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  persistence:
+    size: 1Gi
+    accessModes:
+      - ReadWriteOnce
+    storageClass: ""
+  podSecurityContext:
+    fsGroup: 1001
+  containerSecurityContext:
+    runAsUser: 1001
+    runAsGroup: 1001
+    runAsNonRoot: true
+    allowPrivilegeEscalation: false

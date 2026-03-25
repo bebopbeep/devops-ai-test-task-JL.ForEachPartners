@@ -1,0 +1,5 @@
+# @req SCI-ANS-001
+all:
+  hosts:
+    localhost:
+      ansible_connection: local

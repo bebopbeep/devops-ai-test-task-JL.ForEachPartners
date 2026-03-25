@@ -1,0 +1,97 @@
+# @req SCI-HELM-002
+# @req SCI-HELM-006
+# @req SCI-SEC-001
+{{- $secretName := .Values.auth.existingSecret -}}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "sdd-navigator.componentFullname" (dict "root" . "component" "postgresql") }}
+  namespace: {{ include "sdd-navigator.namespace" . }}
+  labels:
+    {{- include "sdd-navigator.labels" (dict "root" . "component" "postgresql") | nindent 4 }}
+spec:
+  serviceName: {{ include "sdd-navigator.componentFullname" (dict "root" . "component" "postgresql") }}
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "sdd-navigator.selectorLabels" (dict "root" . "component" "postgresql") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "sdd-navigator.selectorLabels" (dict "root" . "component" "postgresql") | nindent 8 }}
+    spec:
+      securityContext:
+        {{- toYaml .Values.primary.podSecurityContext | nindent 8 }}
+      initContainers:
+        - name: volume-permissions
+          image: {{ include "sdd-navigator.image" (dict "root" . "image" .Values.image) }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              mkdir -p /bitnami/postgresql
+              chmod 700 /bitnami/postgresql
+              chown -R 1001:1001 /bitnami/postgresql
+          securityContext:
+            runAsUser: 0
+          volumeMounts:
+            - name: data
+              mountPath: /bitnami/postgresql
+      containers:
+        - name: postgresql
+          image: {{ include "sdd-navigator.image" (dict "root" . "image" .Values.image) }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: postgresql
+              containerPort: {{ .Values.service.port }}
+          env:
+            - name: POSTGRESQL_DATABASE
+              value: {{ .Values.auth.database | quote }}
+            - name: POSTGRESQL_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $secretName }}
+                  key: {{ .Values.auth.usernameKey }}
+            - name: POSTGRESQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $secretName }}
+                  key: {{ .Values.auth.passwordKey }}
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -ec
+                - pg_isready -h 127.0.0.1 -p {{ .Values.service.port }} -U "$POSTGRESQL_USERNAME" -d "$POSTGRESQL_DATABASE"
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -ec
+                - pg_isready -h 127.0.0.1 -p {{ .Values.service.port }} -U "$POSTGRESQL_USERNAME" -d "$POSTGRESQL_DATABASE"
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+            {{- toYaml .Values.primary.resources | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.primary.containerSecurityContext | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /bitnami/postgresql
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        labels:
+          {{- include "sdd-navigator.labels" (dict "root" . "component" "postgresql-storage") | nindent 10 }}
+      spec:
+        accessModes:
+          {{- toYaml .Values.primary.persistence.accessModes | nindent 10 }}
+        resources:
+          requests:
+            storage: {{ .Values.primary.persistence.size }}
+        {{- if .Values.primary.persistence.storageClass }}
+        storageClassName: {{ .Values.primary.persistence.storageClass | quote }}
+        {{- end }}

@@ -1,0 +1,9 @@
+# @req SCI-HELM-002
+# @req SCI-HELM-006
+# @req SCI-SEC-001
+apiVersion: v2
+name: postgresql
+description: Self-contained PostgreSQL chart for SDD Navigator.
+type: application
+version: 0.1.0
+appVersion: "16.4"

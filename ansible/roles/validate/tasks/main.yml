@@ -1,0 +1,135 @@
+# @req SCI-ANS-002
+# @req SCI-ANS-003
+- name: Validate deployed services
+  block:
+    - name: Start API port-forward
+      ansible.builtin.shell: |
+        set -o errexit
+        kubectl port-forward --namespace {{ namespace }} svc/{{ api_service_name }} {{ api_local_port }}:{{ api_service_port }} > {{ playbook_dir }}/.generated/api-port-forward.log 2>&1 &
+        echo $!
+      args:
+        executable: /bin/bash
+      register: api_port_forward
+      changed_when: false
+
+    - name: Wait for local API port to become reachable
+      ansible.builtin.wait_for:
+        host: 127.0.0.1
+        port: "{{ api_local_port }}"
+        timeout: 30
+
+    - name: Query API healthcheck
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:{{ api_local_port }}/healthcheck"
+        method: GET
+        return_content: true
+      register: healthcheck_response
+      changed_when: false
+      failed_when: false
+
+    - name: Query API stats
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:{{ api_local_port }}/stats"
+        method: GET
+        return_content: true
+      register: stats_response
+      changed_when: false
+      failed_when: false
+
+    - name: Find non-running pods
+      ansible.builtin.shell: |
+        set -o errexit
+        kubectl get pods --namespace {{ namespace }} --no-headers | awk '$3 != "Running" { print $0 }'
+      args:
+        executable: /bin/bash
+      register: non_running_pods
+      changed_when: false
+      failed_when: false
+
+    - name: Resolve PostgreSQL pod name
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - get
+          - pods
+          - --namespace
+          - "{{ namespace }}"
+          - -l
+          - "app.kubernetes.io/component=postgresql,app.kubernetes.io/instance={{ release_name }}"
+          - -o
+          - jsonpath={.items[0].metadata.name}
+      register: postgres_pod
+      changed_when: false
+      failed_when: false
+
+    - name: Check PostgreSQL readiness
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - exec
+          - --namespace
+          - "{{ namespace }}"
+          - "{{ postgres_pod.stdout }}"
+          - --
+          - /bin/sh
+          - -ec
+          - pg_isready -U "$POSTGRESQL_USERNAME" -d "$POSTGRESQL_DATABASE"
+      register: postgres_ready
+      changed_when: false
+      failed_when: false
+      when: postgres_pod.rc == 0 and postgres_pod.stdout | length > 0
+
+    - name: Evaluate healthcheck result
+      ansible.builtin.set_fact:
+        healthcheck_ok: "{{ healthcheck_response.status | default(0) == 200 and healthcheck_response.json is defined and healthcheck_response.json.status == 'healthy' }}"
+      changed_when: false
+
+    - name: Evaluate stats result
+      ansible.builtin.set_fact:
+        stats_ok: "{{ stats_response.status | default(0) == 200 and stats_response.json is defined }}"
+      changed_when: false
+
+    - name: Evaluate pod status result
+      ansible.builtin.set_fact:
+        pods_ok: "{{ (non_running_pods.stdout | trim) == '' }}"
+      changed_when: false
+
+    - name: Evaluate PostgreSQL readiness result
+      ansible.builtin.set_fact:
+        postgres_ok: "{{ postgres_ready is defined and postgres_ready.rc == 0 }}"
+      changed_when: false
+
+    - name: Report healthcheck validation
+      ansible.builtin.debug:
+        msg: "healthcheck: {{ 'PASS' if healthcheck_ok else 'FAIL' }}"
+
+    - name: Report stats validation
+      ansible.builtin.debug:
+        msg: "stats: {{ 'PASS' if stats_ok else 'FAIL' }}"
+
+    - name: Report pod validation
+      ansible.builtin.debug:
+        msg: "pods_running: {{ 'PASS' if pods_ok else 'FAIL' }}"
+
+    - name: Report PostgreSQL validation
+      ansible.builtin.debug:
+        msg: "postgres_ready: {{ 'PASS' if postgres_ok else 'FAIL' }}"
+
+    - name: Fail when any validation check fails
+      ansible.builtin.assert:
+        that:
+          - healthcheck_ok
+          - stats_ok
+          - pods_ok
+          - postgres_ok
+        fail_msg: One or more post-deploy validation checks failed.
+  always:
+    - name: Stop API port-forward
+      ansible.builtin.shell: |
+        if [ -n "{{ api_port_forward.stdout | default('') | trim }}" ]; then
+          kill {{ api_port_forward.stdout | trim }}
+        fi
+      args:
+        executable: /bin/bash
+      changed_when: false
+      failed_when: false

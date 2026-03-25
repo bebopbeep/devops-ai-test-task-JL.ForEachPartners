@@ -1,0 +1,48 @@
+# @req SCI-HELM-001
+# @req SCI-HELM-005
+# @req SCI-HELM-006
+# @req SCI-SEC-001
+image:
+  repository: foreachpartners/sdd-coverage-api
+  tag: "3.0.0"
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+containerPort: 8080
+
+service:
+  type: ClusterIP
+  port: 8080
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+config:
+  apiPort: "8080"
+  logLevel: info
+  databaseHost: ""
+  databasePort: "5432"
+  databaseName: sdd_navigator
+
+database:
+  createSecret: false
+  existingSecret: sdd-navigator-db
+  username: "__REPLACE_DB_USER__"
+  password: "__REPLACE_DB_PASSWORD__"
+  usernameKey: username
+  passwordKey: password
+
+podSecurityContext:
+  fsGroup: 1001
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1001
+  runAsGroup: 1001
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true

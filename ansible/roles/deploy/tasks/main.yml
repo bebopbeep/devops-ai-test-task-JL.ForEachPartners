@@ -1,0 +1,232 @@
+# @req SCI-ANS-001
+# @req SCI-ANS-003
+- name: Ensure deployment workspace exists
+  ansible.builtin.file:
+    path: "{{ playbook_dir }}/.generated"
+    state: directory
+    mode: "0750"
+
+- name: Ensure database password is provided
+  ansible.builtin.assert:
+    that:
+      - db_password | length > 0
+    fail_msg: Set SDD_DB_PASSWORD in the environment before running the playbook.
+
+- name: Render Helm override values
+  ansible.builtin.copy:
+    dest: "{{ chart_values_path }}"
+    mode: "0640"
+    content: |
+      # @req SCI-ANS-001
+      # @req SCI-ANS-003
+      global:
+        namespace: {{ namespace }}
+        domain: {{ domain }}
+        imageRegistry: ""
+        tls:
+          enabled: {{ tls_enabled | lower }}
+          secretName: {{ tls_secret_name }}
+      ingress:
+        enabled: true
+        className: nginx
+        host: {{ domain }}
+        annotations: {}
+        apiPath: /api
+        frontendPath: /
+      api:
+        image:
+          repository: {{ api_image }}
+          tag: "{{ api_tag }}"
+        replicaCount: {{ api_replicas }}
+        service:
+          port: {{ api_service_port }}
+        config:
+          apiPort: "{{ api_service_port }}"
+          logLevel: {{ api_log_level }}
+          databaseName: {{ db_name }}
+        database:
+          createSecret: false
+          existingSecret: {{ db_secret_name }}
+          username: {{ db_user }}
+      frontend:
+        image:
+          repository: {{ frontend_image }}
+          tag: "{{ frontend_tag }}"
+        replicaCount: {{ frontend_replicas }}
+        service:
+          port: {{ frontend_service_port }}
+      postgresql:
+        auth:
+          database: {{ db_name }}
+          username: {{ db_user }}
+          existingSecret: {{ db_secret_name }}
+        service:
+          port: {{ db_port }}
+        primary:
+          persistence:
+            size: {{ db_storage_size }}
+
+- name: Check whether namespace already exists
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - get
+      - namespace
+      - "{{ namespace }}"
+  register: namespace_lookup
+  changed_when: false
+  failed_when: false
+
+- name: Create namespace when missing
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - create
+      - namespace
+      - "{{ namespace }}"
+  when: namespace_lookup.rc != 0
+
+- name: Apply database credentials secret
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - apply
+      - -f
+      - "-"
+    stdin: |
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: {{ db_secret_name }}
+        namespace: {{ namespace }}
+      type: Opaque
+      stringData:
+        username: {{ db_user }}
+        password: {{ db_password }}
+  register: db_secret_apply
+  changed_when: "'created' in db_secret_apply.stdout or 'configured' in db_secret_apply.stdout"
+
+- name: Render Helm manifests for drift detection
+  ansible.builtin.command:
+    argv:
+      - helm
+      - template
+      - "{{ release_name }}"
+      - "{{ chart_path }}"
+      - --namespace
+      - "{{ namespace }}"
+      - -f
+      - "{{ chart_values_path }}"
+  register: rendered_manifests
+  changed_when: false
+
+- name: Persist rendered manifests
+  ansible.builtin.copy:
+    dest: "{{ rendered_manifests_path }}"
+    mode: "0640"
+    content: "{{ rendered_manifests.stdout }}"
+
+- name: Check whether Helm release already exists
+  ansible.builtin.command:
+    argv:
+      - helm
+      - status
+      - "{{ release_name }}"
+      - --namespace
+      - "{{ namespace }}"
+  register: helm_status
+  changed_when: false
+  failed_when: false
+
+- name: Diff rendered manifests against the cluster
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - diff
+      - --namespace
+      - "{{ namespace }}"
+      - -f
+      - "{{ rendered_manifests_path }}"
+  register: manifest_diff
+  changed_when: false
+  failed_when: manifest_diff.rc not in [0, 1]
+  when: helm_status.rc == 0
+
+- name: Decide whether Helm upgrade is required
+  ansible.builtin.set_fact:
+    needs_helm_upgrade: "{{ helm_status.rc != 0 or (helm_status.rc == 0 and manifest_diff.rc == 1) }}"
+  changed_when: false
+
+- name: Install or upgrade the Helm release
+  ansible.builtin.command:
+    argv:
+      - helm
+      - upgrade
+      - --install
+      - "{{ release_name }}"
+      - "{{ chart_path }}"
+      - --namespace
+      - "{{ namespace }}"
+      - -f
+      - "{{ chart_values_path }}"
+      - --wait
+      - --timeout
+      - 5m
+  when: needs_helm_upgrade
+
+- name: Wait for PostgreSQL pod readiness
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - wait
+      - --namespace
+      - "{{ namespace }}"
+      - --for=condition=Ready
+      - pod
+      - -l
+      - "app.kubernetes.io/component=postgresql,app.kubernetes.io/instance={{ release_name }}"
+      - --timeout=300s
+  changed_when: false
+
+- name: Wait for API pod readiness
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - wait
+      - --namespace
+      - "{{ namespace }}"
+      - --for=condition=Ready
+      - pod
+      - -l
+      - "app.kubernetes.io/component=api,app.kubernetes.io/instance={{ release_name }}"
+      - --timeout=300s
+  changed_when: false
+
+- name: Wait for frontend pod readiness
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - wait
+      - --namespace
+      - "{{ namespace }}"
+      - --for=condition=Ready
+      - pod
+      - -l
+      - "app.kubernetes.io/component=frontend,app.kubernetes.io/instance={{ release_name }}"
+      - --timeout=300s
+  changed_when: false
+
+- name: Wait for ingress resource
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - get
+      - ingress
+      - "{{ ingress_name }}"
+      - --namespace
+      - "{{ namespace }}"
+  register: ingress_lookup
+  changed_when: false
+  until: ingress_lookup.rc == 0
+  retries: 10
+  delay: 3

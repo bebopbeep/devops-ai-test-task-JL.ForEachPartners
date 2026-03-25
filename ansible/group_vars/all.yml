@@ -1,0 +1,42 @@
+# @req SCI-ANS-001
+# @req SCI-ANS-002
+# @req SCI-ANS-003
+# @req SCI-HELM-001
+# @req SCI-HELM-002
+# @req SCI-HELM-003
+# @req SCI-HELM-004
+# @req SCI-HELM-005
+# @req SCI-HELM-006
+namespace: sdd-navigator
+release_name: sdd-navigator
+chart_path: "{{ playbook_dir }}/../charts/sdd-navigator"
+chart_values_path: "{{ playbook_dir }}/.generated/values.override.yaml"
+rendered_manifests_path: "{{ playbook_dir }}/.generated/rendered-manifests.yaml"
+
+api_image: foreachpartners/sdd-coverage-api
+api_tag: "3.0.0"
+api_replicas: 1
+api_service_port: 8080
+api_log_level: info
+api_local_port: 18080
+
+frontend_image: nginx
+frontend_tag: "1.27.5-alpine"
+frontend_replicas: 1
+frontend_service_port: 80
+
+db_name: sdd_navigator
+db_user: sdd_app
+db_password: "{{ lookup('ansible.builtin.env', 'SDD_DB_PASSWORD') }}"
+db_secret_name: "{{ release_name }}-db"
+db_port: 5432
+db_storage_size: 1Gi
+
+domain: sdd.local
+tls_enabled: false
+tls_secret_name: sdd-navigator-tls
+
+api_service_name: "{{ release_name }}-api"
+frontend_service_name: "{{ release_name }}-frontend"
+postgres_service_name: "{{ release_name }}-postgresql"
+ingress_name: "{{ release_name }}-sdd-navigator"

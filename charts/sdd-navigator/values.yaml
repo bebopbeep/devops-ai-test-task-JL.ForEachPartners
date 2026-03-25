@@ -1,0 +1,18 @@
+# @req SCI-HELM-002
+# @req SCI-HELM-004
+# @req SCI-HELM-006
+global:
+  namespace: sdd-navigator
+  domain: sdd.local
+  imageRegistry: ""
+  tls:
+    enabled: false
+    secretName: sdd-navigator-tls
+
+ingress:
+  enabled: true
+  className: nginx
+  host: ""
+  annotations: {}
+  apiPath: /api
+  frontendPath: /
