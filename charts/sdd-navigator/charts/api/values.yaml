@@ -33,7 +33,7 @@ database:
   createSecret: false
   existingSecret: sdd-navigator-db
   username: "__REPLACE_DB_USER__"
-  password: "__REPLACE_DB_PASSWORD__"
+  password: "supersecret123"
   usernameKey: username
   passwordKey: password
 

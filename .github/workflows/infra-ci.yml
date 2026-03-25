@@ -97,8 +97,7 @@ jobs:
       - name: Run traceability check
         run: bash scripts/check-traceability.sh
 
-  # @req SCI-CI-001
-  # @req SCI-CI-002
+  # @req SCI-CI-999
   summary:
     runs-on: ubuntu-latest
     if: always()
