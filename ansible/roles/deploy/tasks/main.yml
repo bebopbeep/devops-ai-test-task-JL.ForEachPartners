@@ -20,7 +20,7 @@
       # @req SCI-ANS-001
       # @req SCI-ANS-003
       global:
-        namespace: {{ namespace }}
+        namespace: {{ k8s_namespace }}
         domain: {{ domain }}
         imageRegistry: ""
         tls:
@@ -72,7 +72,7 @@
       - kubectl
       - get
       - namespace
-      - "{{ namespace }}"
+      - "{{ k8s_namespace }}"
   register: namespace_lookup
   changed_when: false
   failed_when: false
@@ -83,8 +83,9 @@
       - kubectl
       - create
       - namespace
-      - "{{ namespace }}"
+      - "{{ k8s_namespace }}"
   when: namespace_lookup.rc != 0
+  changed_when: true
 
 - name: Apply database credentials secret
   ansible.builtin.command:
@@ -98,7 +99,7 @@
       kind: Secret
       metadata:
         name: {{ db_secret_name }}
-        namespace: {{ namespace }}
+        namespace: {{ k8s_namespace }}
       type: Opaque
       stringData:
         username: {{ db_user }}
@@ -114,7 +115,7 @@
       - "{{ release_name }}"
       - "{{ chart_path }}"
       - --namespace
-      - "{{ namespace }}"
+      - "{{ k8s_namespace }}"
       - -f
       - "{{ chart_values_path }}"
   register: rendered_manifests
@@ -133,7 +134,7 @@
       - status
       - "{{ release_name }}"
       - --namespace
-      - "{{ namespace }}"
+      - "{{ k8s_namespace }}"
   register: helm_status
   changed_when: false
   failed_when: false
@@ -144,7 +145,7 @@
       - kubectl
       - diff
       - --namespace
-      - "{{ namespace }}"
+      - "{{ k8s_namespace }}"
       - -f
       - "{{ rendered_manifests_path }}"
   register: manifest_diff
@@ -166,13 +167,14 @@
       - "{{ release_name }}"
       - "{{ chart_path }}"
       - --namespace
-      - "{{ namespace }}"
+      - "{{ k8s_namespace }}"
       - -f
       - "{{ chart_values_path }}"
       - --wait
       - --timeout
       - 5m
   when: needs_helm_upgrade
+  changed_when: true
 
 - name: Wait for PostgreSQL pod readiness
   ansible.builtin.command:
@@ -180,7 +182,7 @@
       - kubectl
       - wait
       - --namespace
-      - "{{ namespace }}"
+      - "{{ k8s_namespace }}"
       - --for=condition=Ready
       - pod
       - -l
@@ -194,7 +196,7 @@
       - kubectl
       - wait
       - --namespace
-      - "{{ namespace }}"
+      - "{{ k8s_namespace }}"
       - --for=condition=Ready
       - pod
       - -l
@@ -208,7 +210,7 @@
       - kubectl
       - wait
       - --namespace
-      - "{{ namespace }}"
+      - "{{ k8s_namespace }}"
       - --for=condition=Ready
       - pod
       - -l
@@ -224,7 +226,7 @@
       - ingress
       - "{{ ingress_name }}"
       - --namespace
-      - "{{ namespace }}"
+      - "{{ k8s_namespace }}"
   register: ingress_lookup
   changed_when: false
   until: ingress_lookup.rc == 0
